@@ -10,6 +10,8 @@ CompilerIf #PB_Compiler_OS = #PB_OS_Linux And #PB_Compiler_Processor = #PB_Proce
 	End
 CompilerEndIf
 
+XIncludeFile "asm.pb"
+
 CompilerIf #PB_Compiler_OS = #PB_OS_Windows
 	XIncludeFile "windows\winnt.pbi"
 
