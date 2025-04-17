@@ -120,38 +120,3 @@ CompilerIf Defined(_XOPEN_SOURCE, #PB_Constant)
 CompilerEndIf
 EndStructure 
 
-;- TEST
-; EnableExplicit
-; 
-; Global.ucontext_t main_context, func_context
-; 
-; ProcedureC func1(a.i)
-; 	Debug #PB_Compiler_Procedure
-; 	
-; 	Debug a
-; 	swapcontext(@func_context, @main_context)
-; 	
-; 	Debug "back"
-; EndProcedure
-; 
-; 
-; Procedure main()
-; 	Protected.i stack
-; 	
-; 	getcontext(@main_context)
-; 	
-; 	stack = AllocateMemory(8192)
-; 	
-; 	getcontext(@func_context)
-;   func_context\uc_stack\ss_sp = stack
-; 	func_context\uc_stack\ss_size = 8192
-; 	func_context\uc_link = @main_context
-; 	
-; 	makecontext(@func_context, @func1(), 1, 10)
-; 	swapcontext(@main_context, @func_context)
-; 	Debug "back 2"
-; EndProcedure
-; 
-; main()
-
-
