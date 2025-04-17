@@ -76,7 +76,7 @@ Procedure GetCurrentFiber()
 	EndIf 
 EndProcedure
 
-Procedure GetFiberData()
+Procedure.i GetFiberData()
 	Protected._NT_TIB *tib
 	
 	*tib = NtCurrentTeb()

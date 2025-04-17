@@ -1,55 +1,42 @@
-﻿;PBCoroutines_Test.pb
-
-EnableExplicit
+﻿EnableExplicit
 
 XIncludeFile "PBCoroutines.pb"
 
-Procedure.l co_function(*co.co_handle)
-	Protected.l x
+Procedure.l my_task1(co.i) 
+	Debug "Task1: Step 1 "
+	Debug co_get_arg(co)
 	
-	Debug "co_function start"
+	co_yield(co)
+	Debug "Task1: Step 2 End"
+EndProcedure
+
+Procedure.l my_task2(co.i) 
+	Debug "Task2: Step 1 "
 	
-	x = 0
-	
-	For x = 1 To 5
-		Debug "co_function " + Str(x)
-		
-		co_put_arg(*co, x)
-		co_yield(*co) ;switch to main
-	Next 
-	
-	Debug "co_function end"
-	
-	co_exit(*co)
+	co_yield(co)
+	Debug "Task2: Step 2 End"
 EndProcedure
 
 Procedure main()
-	Protected.co_handle *mainCo, *co
+	Protected.i co, co2
 	
-	co_lib_init() ;init lib
-	
-	co_thread_init() ;init thread
-	
-	;main coroutine
-	*mainCo = co_create(#Null, #Null, #Null)
-	
-	;child coroutine
-	*co = co_create(*mainCo, @co_function(), 0)
+	co = co_create(@my_task1(), 10)
+	co2 = co_create(@my_task2(), 20)
 
-	While Not co_ended(*co)
-		co_resume(*co) ;switch to co_function
-		
-		If Not co_ended(*co) ;check if ended after last resume
-			Debug "main " + Str(co_get_arg(*co))
-		EndIf
-	Wend 
+	Debug "Main: Resume Task1"
+	co_resume(co)
+	Debug "Main: Back from Task1"
+	Debug "Main: Resume Task2"
+	co_resume(co2)
+	Debug "Main: Back from Task2"
+	Debug "Main: Resume Task1"
+	co_resume(co)
+	Debug "Main: Back from Task1"
+	Debug "Main: Resume Task2"
+	co_resume(co2)
 
-	Debug "main done"
-	
-	co_destroy(*co)
-	
-	co_lib_shutdown() ;close lib
+	co_destroy(co)
+	co_destroy(co2)
 EndProcedure
 
 main()
-

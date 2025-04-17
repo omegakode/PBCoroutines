@@ -4,6 +4,7 @@
 
 ImportC #CO_LIB_PATH + "libaco.a"
 	aco_thread_init.l(p.i)
+	aco_create_thread.i(arg.i, shareStack.i)
 	aco_create.i(main_co.i, share_stack.i, save_stack_sz.l, co_fp.i, arg.i)
 	aco_resume.l(co.i)
 	aco_destroy.l(co.i)
