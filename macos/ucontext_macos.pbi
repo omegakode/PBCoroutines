@@ -1,7 +1,7 @@
 ﻿ImportC ""
 	swapcontext(a.i, b.i)
 	getcontext(ctx.i)
-	makecontext(c.i, f.i, pc.l, p1.L, p2.l)
+	makecontext(c.i, f.i, pc.l, p1.i)
 	setcontext(c.i)
 EndImport
 

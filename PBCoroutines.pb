@@ -6,14 +6,38 @@ XIncludeFile "PBCoroutines.pbi"
 
 ;- WINDOWS
 CompilerIf #PB_Compiler_OS = #PB_OS_Windows
+	Procedure.l _co_cleanup_cb(hwnd.i, msg.l, *co.co_coroutine_t, time.l)		
+		If *co\destroyCb : *co\destroyCb(*co) : EndIf
+
+		If *co\flags & #CO_CREATE_FLAG_AUTO_DESTROY
+			co_destroy(*co)
+		EndIf
+		
+		KillTimer_(hwnd, *co)
+	EndProcedure
+	
 	Procedure.l _co_trampoline(*co.co_coroutine_t)		
 	  *co\func(*co)
-	  *co\finished = 1
+	  *co\state = #CO_STATE_FINISHED
+		
+		If *co\window
+			SetTimer_(*co\window, *co, 0, @_co_cleanup_cb())
+		EndIf 
 	  SwitchToFiber_(*co\caller) ;Yield back to the caller
 	EndProcedure
 	
 ;- LINUX
 CompilerElseIf #PB_Compiler_OS = #PB_OS_Linux
+	Procedure.l _co_cleanup_cb(*co.co_coroutine_t)
+		If *co\destroyCb : *co\destroyCb(*co) : EndIf
+
+		If *co\flags & #CO_CREATE_FLAG_AUTO_DESTROY
+			co_destroy(*co)
+		EndIf
+		
+		ProcedureReturn #False ;Run only once
+	EndProcedure
+	
 	Procedure.l _co_trampoline()
 		Protected.aco_t *aco
 		Protected.co_coroutine_t *co
@@ -22,30 +46,38 @@ CompilerElseIf #PB_Compiler_OS = #PB_OS_Linux
 		*co = *aco\arg
 		
 	  *co\func(*co)
-	  *co\finished = 1
+	  *co\state = #CO_STATE_FINISHED
+	  
+	  If *co\window
+			g_idle_add_(@_co_cleanup_cb(), *co)
+		EndIf 
 	  aco_exit(*co\co)
 	EndProcedure
 	
 ;- MACOS
 CompilerElseIf #PB_Compiler_OS = #PB_OS_MacOS
-	Procedure.l _co_trampoline(low.l, high.l)
-		Protected.co_coroutine_t *co
-				
-		*co = (high << 32) | low
+	Procedure.l _co_trampoline(*co.co_coroutine_t)
 		*co\func(*co)
-		*co\finished = 1
+	  *co\state = #CO_STATE_FINISHED
 		setcontext(*co\caller) ;Return to caller
 	EndProcedure
 CompilerEndIf
 
 ;-
-Procedure.i co_create(func.co_func, arg.i)
+Procedure.i co_create(func.co_func, arg.i, flags.l, window.i, destroyCb.co_destroyCb)
 	Protected.co_coroutine_t *co
+	
+	If destroyCb <> 0 And window = 0
+		ProcedureReturn 0
+	EndIf
 	
 	*co = AllocateMemory(SizeOf(co_coroutine_t))
 	*co\func = func
 	*co\arg = arg
-	*co\finished = 0
+	*co\state = #CO_STATE_IDLE
+	*co\flags = flags
+	*co\destroyCb = destroyCb
+	*co\window = window
 		
 	CompilerIf #PB_Compiler_OS = #PB_OS_Windows
 		*co\caller = ConvertThreadToFiber_(#Null) ;Main thread becomes a fiber
@@ -82,17 +114,22 @@ Procedure.i co_create(func.co_func, arg.i)
 		*co\ctx\uc_stack\ss_size = #CO_STACK_SIZE
 		*co\ctx\uc_link = 0
 
-		makecontext(@*co\ctx, @_co_trampoline(), 2, *co, *co >> 32)
+		makecontext(@*co\ctx, @_co_trampoline(), 1, *co)
 	CompilerEndIf
+	
+	If *co\flags & #CO_CREATE_FLAG_AUTO_RESUME
+		co_resume(*co)
+	EndIf
 	
 	ProcedureReturn *co
 EndProcedure
 
 Procedure.l co_resume(*co.co_coroutine_t)
-	If *co\finished
+	If *co\state = #CO_STATE_FINISHED
 		ProcedureReturn
 	EndIf 
 
+	*co\state = #CO_STATE_SCHEDULED
 	CompilerIf #PB_Compiler_OS = #PB_OS_Windows
 		SwitchToFiber_(*co\fiber) ;Switch to the coroutine's fiber
 		
@@ -116,10 +153,6 @@ Procedure.l co_yield(*co.co_coroutine_t)
 	CompilerEndIf
 EndProcedure
 
-Procedure.l co_finished(*co.co_coroutine_t)
-	ProcedureReturn *co\finished
-EndProcedure
-
 Procedure.l co_destroy(*co.co_coroutine_t)
 	CompilerIf #PB_Compiler_OS = #PB_OS_Windows
 		DeleteFiber_(*co\fiber) 
@@ -130,7 +163,6 @@ Procedure.l co_destroy(*co.co_coroutine_t)
 	CompilerElseIf #PB_Compiler_OS = #PB_OS_MacOS
 		FreeMemory(*co\stack)
 		FreeMemory(*co\caller)
-		
 	CompilerEndIf
 
 	FreeMemory(*co)
@@ -146,6 +178,10 @@ Procedure.i co_put_arg(*co.co_coroutine_t, arg.i)
 	oldArg = *co\arg
 	*co\arg = arg
 	ProcedureReturn oldArg
+EndProcedure
+
+Procedure.l co_get_state(*co.co_coroutine_t)
+	ProcedureReturn *co\state
 EndProcedure
 
 
