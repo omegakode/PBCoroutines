@@ -10,6 +10,7 @@ CompilerElseIf #PB_Compiler_OS = #PB_OS_Linux
 	
 CompilerElseIf #PB_Compiler_OS = #PB_OS_MacOS
 	XIncludeFile "macos/ucontext_macos.pbi"
+	XIncludeFile "macos/queue.pbi"
 CompilerEndIf
 
 #CO_STACK_SIZE  = (64 * 1024)
@@ -54,7 +55,7 @@ Structure co_coroutine_t Align #PB_Structure_AlignC
   flags.l
 EndStructure
 
-Declare.i co_create(func.co_func, arg.i, flags.l, window.i, destroyCb.co_destroyCb)
+Declare.i co_create(func.co_func, arg.i, flags.l, window_id.i, destroyCb.co_destroyCb)
 Declare.l co_resume( *co.co_coroutine_t)
 Declare.l co_yield(*co.co_coroutine_t)
 Declare.i co_get_arg(*co.co_coroutine_t)

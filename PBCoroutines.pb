@@ -56,18 +56,29 @@ CompilerElseIf #PB_Compiler_OS = #PB_OS_Linux
 	
 ;- MACOS
 CompilerElseIf #PB_Compiler_OS = #PB_OS_MacOS
+	Procedure.l _co_cleanup_cb(*co.co_coroutine_t)
+		If *co\destroyCb : *co\destroyCb(*co) : EndIf
+
+		If *co\flags & #CO_CREATE_FLAG_AUTO_DESTROY
+			co_destroy(*co)
+		EndIf
+	EndProcedure
+	
 	Procedure.l _co_trampoline(*co.co_coroutine_t)
 		*co\func(*co)
 	  *co\state = #CO_STATE_FINISHED
+	  If *co\window
+	  	dispatch_async_f(dispatch_get_main_queue(), *co, @_co_cleanup_cb())
+	  EndIf
 		setcontext(*co\caller) ;Return to caller
 	EndProcedure
 CompilerEndIf
 
 ;-
-Procedure.i co_create(func.co_func, arg.i, flags.l, window.i, destroyCb.co_destroyCb)
+Procedure.i co_create(func.co_func, arg.i, flags.l, window_id.i, destroyCb.co_destroyCb)
 	Protected.co_coroutine_t *co
 	
-	If destroyCb <> 0 And window = 0
+	If destroyCb <> 0 And window_id = 0
 		ProcedureReturn 0
 	EndIf
 	
@@ -77,7 +88,7 @@ Procedure.i co_create(func.co_func, arg.i, flags.l, window.i, destroyCb.co_destr
 	*co\state = #CO_STATE_IDLE
 	*co\flags = flags
 	*co\destroyCb = destroyCb
-	*co\window = window
+	*co\window = window_id
 		
 	CompilerIf #PB_Compiler_OS = #PB_OS_Windows
 		*co\caller = ConvertThreadToFiber_(#Null) ;Main thread becomes a fiber
